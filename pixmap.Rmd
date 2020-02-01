@@ -1,0 +1,103 @@
+---
+title: "pixmap_project"
+author: "Dong Hee Lee"
+date: "January 31, 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+setwd("/Users/dongheelee/Desktop/pixmap_project")
+install.packages("pixmap")
+library(pixmap)
+```
+
+```{r}
+a <- library(pixmap)
+face_01 = read.pnm('CroppedYale/yaleB01/yaleB01_P00A-005E+10.pgm')
+```
+
+```{r}
+#Viewing the image with the command
+plot(face_01)
+class(face_01)
+```
+```{r}
+#making a matrix of face_01
+face_01_matrix <- getChannels(face_01)
+#face_01_matrix
+dim(face_01_matrix) #a 192 by 168 matrix 
+```
+```{r}
+face_02 = read.pnm('CroppedYale/yaleB02/yaleB02_P00A-005E+10.pgm')
+face_02_matrix <- getChannels(face_02)
+dim(face_02_matrix)
+faces = pixmapGrey(data=cbind(face_01_matrix, face_02_matrix)) #pixmapGrey is a class that maps bit-mapped images in 3 different formats 
+
+plot(faces)
+max_value <- max(cbind(face_01_matrix, face_02_matrix)) #max pix value
+min_value <- min(cbind(face_01_matrix, face_02_matrix)) #min pix value
+```
+```{r}
+#get directory structure
+directories =dir(path="CroppedYale/",all.files=FALSE) #folder names 
+all_views =dir(path="CroppedYale/",all.files=FALSE,recursive=TRUE) #folder contents combined
+```
+
+```{r}
+pics =c( 05 , 11 , 31 ) #3 pics: 5th, 11th, and 31st pics
+views =c('P00A-005E+10','P00A-005E-10','P00A-010E+00') #for each pic/directory we choose 3 views
+pic_data = vector("list", length(pics)*length(directories)) #allocate an empty list
+six_faces_matrix = vector() 
+```
+
+```{r}
+for(i in 1:length(pics)){
+  faces_row = vector()
+  for(j in 1:length(views)){
+    filename <- sprintf("CroppedYale/%s/%s_%s.pgm", directories[pics[i]], directories[pics[i]], views[j]) #each file is a pic, but for each pic/directory there are multiple versions of it 
+    print(filename)
+    face <- read.pnm(filename) #read and write bitmap image of the face 
+    face_matrix <- getChannels(face) #get the matrix of the bitmap image 
+    faces_row <- cbind(faces_row, face_matrix) #column-bind the face matrices 
+  }
+  
+  six_faces_matrix = rbind(six_faces_matrix, faces_row) #add the row of faces to the six faces matrix 
+}
+ 
+#what is the dimension of one face matrix 
+  #192 by 168
+#what is the dimension of a faces_row, which consists of 3 views of the same face
+  #192 by 504
+#what is the dimension of the six_faces_matrix 
+  #576 by 504
+  dim(six_faces_matrix)
+```
+
+#plotting the six_faces_matrix 
+```{r}
+plot(pixmapGrey(six_faces_matrix))
+title("six faces")
+```
