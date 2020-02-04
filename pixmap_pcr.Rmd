@@ -1,0 +1,121 @@
+```{r}
+setwd("/Users/dongheelee/Desktop/pixmap_project")
+install.packages("pixmap")
+library(pixmap)
+```
+
+For each face, we get four views. 
+Each row of the "all_faces" matrix represents the data for a version of a particular face.
+
+```{r}
+directories = dir(path="CroppedYale/",all.files=FALSE)
+pics = 1:length(directories)
+views = c('P00A+000E+00', 'P00A-005E+10','P00A-005E-10','P00A-010E+00')
+all_faces = vector()
+for(i in 1:length(pics)){
+  
+  add_matrix <- vector()
+  for(j in 1:length(views)){
+    file <- sprintf("CroppedYale/%s/%s_%s.pgm", directories[pics[i]], directories[pics[i]], views[j])
+
+    face <- read.pnm(file) #get the face
+    
+    face_matrix <- getChannels(face)
+    face_vector <- as.vector(face_matrix)
+    
+    add_matrix <- rbind(add_matrix, face_vector)
+  }
+  
+  all_faces <- rbind(all_faces, add_matrix)
+  dim(all_faces)
+}
+```
+
+
+```{r}
+mean_face <- colMeans(all_faces) #gets average pixel value across all of the faces (we get 32256 values in total), resulting a single row of values that represents the "mean face"
+
+mean_face_image <- pixmapGrey(matrix(mean_face, nrow=192, ncol=168)) #this creates a bitmapped image 
+
+#centers column by column
+
+plot(mean_face_image)
+
+centered_all_faces <- all_faces
+for(i in 1:length(mean_face)){
+  centered_all_faces[, i] <- centered_all_faces[, i]-mean_face[i]
+}
+
+plot(centered_all_faces)
+#below centers row by row  
+
+#center the mean_face_mat, will have dimesions 152 by 32256
+#mean_face_centered = mat.or.vec(dim(all_faces)[1],dim(all_faces)[2])
+
+#for each row (photo), subtract off the mean pix from the corresponding pix in the photo
+#for(i in 1:dim(all_faces)[1]){
+  #mean_face_centered[i,] <- all_faces[i,]-mean_face
+#}
+```
+
+```{r}
+```
+
+I am applying pcr analysis on the image (mean-centered) matrix.
+We have, in total, 152 principal components, each representing a photo that is called an eigenface. 
+```{r}
+eigenfaces <- prcomp(centered_all_faces)
+```
+
+Here are the first 9 eigenfaces in a 3-by-3 matrix. 
+Each eigenface brings out particular features of the face. 
+```{r}
+row_of_images <- vector()
+three_by_three <- vector()
+
+for(i in 1:9){
+  
+  eigenface_matrix <- matrix(eigenfaces$rotation[,i], nrow=192, ncol=168) #192 by 168 is the dimension for a single face matrix, eigenfaces$rotation = column of eigenfaces 
+
+  
+  row_of_images <- cbind(row_of_images, eigenface_matrix)
+  
+  if (i %% 3 == 0){
+    
+    three_by_three <- rbind(three_by_three, row_of_images)
+    row_of_images <- c()
+  }
+  
+}
+a <- pixmapGrey(three_by_three)
+plot(a)
+```
+
+Plot of the number of components on the x-axis against the proportion of the variance explained on the y-axis:
+
+```{r}
+proportion_of_variance <- cumsum((eigenfaces$sdev)^2)*100/(sum((eigenfaces$sdev)^2))
+
+plot(1:length(proportion_of_variance), proportion_of_variance, type="l", col="blue", xlab="Principal Component", ylab="Proportion of Variance")
+```
+
+I am using the eigenfaces to reconstruct the photo yaleB05_P00A+010E+00.pgm (this is the 4th pic in the 5th directory (overall, this is 4*5 = 20th pic).
+
+I start at the mean face, and one by one, I add in an eigenface at a time until reaching 24 eigenfaces.   
+
+ 
+```{r}
+start <- mat.or.vec(nr=length(mean_face), nc = 1)
+eigenface <- start
+for(i in 1:24){
+  #the length of a column of eigenfaces$x is 152 
+  #each column of eigenfaces$rotation represents a face
+  
+  eigenface <- eigenface + eigenfaces$x[20, i]*eigenfaces$rotation[, i]
+}
+
+eigenface_matrix <- matrix(eigenface, nrow=192, ncol=168)
+image <- pixmapGrey(eigenface_matrix)
+
+plot(image)
+```
